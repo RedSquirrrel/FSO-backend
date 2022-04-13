@@ -1,8 +1,11 @@
 const express = require('express');
 const app = express();
 const morgan = require('morgan');
+const cors = require('cors');
 
+app.use(cors());
 app.use(express.json());
+app.use(express.static('build'));
 
 let persons = [
   {
@@ -26,6 +29,16 @@ let persons = [
     number: '39-23-6423122',
   },
 ];
+
+const requestLogger = (request, response, next) => {
+  console.log('Method:', request.method);
+  console.log('Path:  ', request.path);
+  console.log('Body:  ', request.body);
+  console.log('---');
+  next();
+};
+
+app.use(requestLogger);
 
 const generateID = () => {
   const id = Math.floor(Math.random() * 1000000);
@@ -90,7 +103,7 @@ app.post('/api/persons', (request, response) => {
   response.json(person);
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`App running on port ${PORT}`);
 });
