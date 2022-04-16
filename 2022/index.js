@@ -58,7 +58,7 @@ morgan.token('body', function (req, res) {
 });
 app.use(morgan(':method :url :status  :res[content-length] - :response-time ms :body'));
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body;
 
   if (!body.name || !body.number) {
@@ -67,33 +67,32 @@ app.post('/api/persons', (request, response) => {
     });
   }
 
-  // const findPerson = persons.map(p => p.name.toLowerCase() === body.name.toLowerCase());
-
-  // if (findPerson.find(p => p === true)) {
-  //   return response.status(400).json({
-  //     error: 'Name must be unique',
-  //   });
-  // }
-
   const person = new Person({
     name: body.name,
     number: body.number,
   });
 
-  person.save().then(savedPerson => {
-    response.json(savedPerson);
+  Person.find({ name: body.name }).exec(function (err, track) {
+    console.log('POSTTTTT:', track);
+    if (track.length) {
+      return response.status(400).json({
+        error: 'Name must be unique',
+      });
+    }
+
+    person
+      .save()
+      .then(savedPerson => {
+        response.json(savedPerson);
+      })
+      .catch(error => next(error));
   });
 });
 
 app.put('/api/persons/:id', (request, response, next) => {
-  const body = request.body;
+  const { name, number } = request.body;
 
-  const person = {
-    name: body.name,
-    number: body.number,
-  };
-
-  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+  Person.findByIdAndUpdate(request.params.id, { name, number }, { new: true, runValidators: true, context: 'query' })
     .then(updatedPerson => {
       if (!updatedPerson) {
         return response.status(400).end();
@@ -112,6 +111,9 @@ app.use(unknowEndpoint);
 const errorHandler = (err, request, response, next) => {
   if (err.name === 'CastError') {
     return response.status(400).send({ error: 'Malformatted id' });
+  }
+  if (err.name === 'ValidationError') {
+    return response.status(400).json({ error: err.message });
   }
   next(err);
 };
